@@ -13,3 +13,7 @@ It's a small project just do:
 bun install
 bun run dev
 ```
+
+## TODOs
+- [ ] Save all variables to localStorage
+- [ ] Save uploaded image to indexedDb

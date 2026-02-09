@@ -9,6 +9,7 @@
     } from "qr-code-styling";
     import FormBuilder from "$lib/FormBuilder.svelte";
     import ImageProcessor from "$lib/ImageProcessor.svelte";
+    import {idb, local} from "$lib/storage";
 
     const cornerSquareTypes: CornerSquareType[] = ["dot", "square", "extra-rounded", "dots", "rounded", "classy", "classy-rounded"];
     const cornerDotTypes: CornerDotType[] = ["dot", "square", "dots", "rounded", "classy", "classy-rounded"];
@@ -60,7 +61,7 @@
         cornersDotType: {type: "union", options: cornerDotTypes, default: "dot"},
         cornersDotColor: {type: "color", default: "#000000"},
 
-        // Gradients (Vereinfacht für den FormBuilder)
+        // Gradients
         useGradient: {type: "boolean", default: false},
         gradientType: {type: "union", options: ["linear", "radial"], default: "linear"},
         gradientColor1: {type: "color", default: "#000000"},
@@ -69,12 +70,11 @@
     } as const;
 
     let canvas: HTMLElement | undefined = $state();
-    let qrCode: any = $state(); // Wir halten die Instanz im State
+    let qrCode: any = $state();
     let isMounted = $state(false);
 
     let rawImage: undefined | string = $state();
 
-    // Deine "Controls" als reaktiver State
     let options = $state({
         data: schema.data.default,
         width: schema.width.default,
@@ -90,6 +90,16 @@
         imageSize: schema.imageSize.default,
         imageMargin: schema.imageMargin.default,
         hideBackgroundDots: schema.hideBackgroundDots.default,
+
+        logoStyle: {
+            shape: 'square' as 'square' | 'circle',
+            radius: 40,
+            padding: 20,
+            borderWidth: 10,
+            borderColor: '#000000',
+            backgroundColor: '#ffffff' as string | undefined,
+            size: 512
+        },
 
         // Corners
         cornersSquareType: schema.cornersSquareType.default as CornerSquareType,
@@ -139,6 +149,17 @@
     });
 
     onMount(async () => {
+        const savedOptions = local.get('qr_settings');
+        if (savedOptions) {
+            delete savedOptions.image;
+            Object.assign(options, savedOptions);
+        }
+
+        const savedRawImage = await idb.get('qr_raw_image');
+        if (savedRawImage) {
+            rawImage = savedRawImage;
+        }
+
         const QRCodeStyling = (await import("qr-code-styling")).default;
 
         qrCode = new QRCodeStyling(getQrOptions());
@@ -149,8 +170,10 @@
         }
     });
 
-    // Dieser Effekt feuert immer, wenn sich 'options' ändert
     $effect(() => {
+        const { image, ...pureSettings } = options;
+        local.set('qr_settings', pureSettings);
+
         const _img = options.image;
         const _data = options.data;
         const _dots = options.dotColor;
@@ -179,21 +202,23 @@
     };
 
     // Image Upload Handler
-    const handleImageUpload = (e: Event) => {
+    const handleImageUpload = async (e: Event) => {
         const file = (e.target as HTMLInputElement).files?.[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = (event) => {
-                // WICHTIG: In rawImage laden, NICHT in options.image
-                rawImage = event.target?.result as string;
+            reader.onload = async (event) => {
+                const base64 = event.target?.result as string;
+                rawImage = base64;
+                await idb.set('qr_raw_image', base64);
             };
             reader.readAsDataURL(file);
         }
     };
 
-    const removeImage = () => {
+    const removeImage = async () => {
         rawImage = undefined;
         options.image = undefined;
+        await idb.remove('qr_raw_image');
     };
 </script>
 
@@ -284,7 +309,7 @@
                             Bild entfernen
                         </button>
 
-                        <ImageProcessor src={rawImage} bind:processed={options.image}/>
+                        <ImageProcessor src={rawImage} bind:processed={options.image} bind:settings={options.logoStyle} />
                     {/if}
                 </div>
 

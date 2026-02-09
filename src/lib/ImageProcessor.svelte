@@ -1,20 +1,21 @@
 <script lang="ts">
     import FormBuilder from "./FormBuilder.svelte";
 
+    type LogoSettings = {
+        shape: 'square' | 'circle';
+        radius: number;
+        padding: number;
+        borderWidth: number;
+        borderColor: string;
+        backgroundColor: string | undefined;
+        size: number;
+    };
+
     let {
         src,
-        processed = $bindable()
-    } = $props<{ src: string, processed: string | undefined }>();
-
-    let settings = $state({
-        shape: 'square' as 'square' | 'circle',
-        radius: 40,
-        padding: 20,
-        borderWidth: 10,
-        borderColor: '#2596be',
-        backgroundColor: '#ffffff' as string | undefined,
-        size: 512
-    });
+        processed = $bindable(),
+        settings = $bindable(),
+    } = $props<{ src: string, processed: string | undefined, settings: LogoSettings }>();
 
     let canvas: HTMLCanvasElement | undefined = $state();
     let imageElement: HTMLImageElement | null = $state(null);
@@ -39,7 +40,6 @@
         canvas.height = s.size;
         ctx.clearRect(0, 0, s.size, s.size);
 
-        // Hilfsfunktion für abgerundete Pfade
         const drawPath = (x: number, y: number, size: number, r: number) => {
             ctx.beginPath();
             if (s.shape === 'circle') {
@@ -49,13 +49,11 @@
             }
         };
 
-        // 1. DER RAND (BORDER)
         if (s.borderWidth > 0) {
             drawPath(0, 0, s.size, s.radius);
             ctx.fillStyle = s.borderColor;
             ctx.fill();
 
-            // Wir "stanzen" die Mitte aus dem Rand aus, damit er kein Hintergrund ist
             ctx.save();
             ctx.globalCompositeOperation = 'destination-out';
             drawPath(s.borderWidth, s.borderWidth, s.size - s.borderWidth * 2, s.radius - s.borderWidth);
@@ -63,21 +61,17 @@
             ctx.restore();
         }
 
-        // 2. DER HINTERGRUND (Nur wenn aktiviert)
         if (s.backgroundColor !== undefined) {
             drawPath(s.borderWidth, s.borderWidth, s.size - s.borderWidth * 2, s.radius - s.borderWidth);
             ctx.fillStyle = s.backgroundColor;
             ctx.fill();
         }
 
-        // 3. DAS BILD MIT PADDING
-        // Das Padding verkleinert den verfügbaren Platz im Zentrum
         const totalOffset = s.borderWidth + s.padding;
         const availableSpace = s.size - (totalOffset * 2);
 
         if (availableSpace > 0) {
             ctx.save();
-            // Clipping auf den verfügbaren Platz (optional, verhindert Überlappung)
             drawPath(totalOffset, totalOffset, availableSpace, s.radius - totalOffset);
             ctx.clip();
 
@@ -88,7 +82,6 @@
             const finalW = img.width * ratio;
             const finalH = img.height * ratio;
 
-            // Zentrierung im verfügbaren Platz
             const x = totalOffset + (availableSpace - finalW) / 2;
             const y = totalOffset + (availableSpace - finalH) / 2;
 
