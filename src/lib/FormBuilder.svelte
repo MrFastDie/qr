@@ -10,26 +10,24 @@
     let {
         schema,
         value = $bindable(),
-        label
-    } = $props<{
-        schema: SchemaItem;
-        value: any;
-        label: string
-    }>();
+        label = "Unbenannt"
+    } = $props<{ schema: SchemaItem; value: any; label?: string }>();
+    const isOptional = $derived(schema?.optional === true);
 
-    // Wir prüfen explizit auf true. Wenn das Feld fehlt, ist es nicht optional.
-    const isOptional = $derived(schema.optional === true);
+    let isEnabled = $state(false);
 
-    // Initialer Status: Wenn nicht optional, immer an. Wenn optional, prüfen ob Wert da ist.
-    let isEnabled = $state(!isOptional || value !== undefined);
+    $effect.pre(() => {
+        if (schema) {
+            isEnabled = !schema.optional || value !== undefined;
+        }
+    });
 
     $effect(() => {
-        if (isOptional) {
+        if (schema && isOptional) {
             if (!isEnabled) {
-                value = undefined;
-            } else if (value === undefined) {
-                // Fallback auf Defaults, wenn der User den Bereich aktiviert
-                if (schema.type === 'number') value = schema.default ?? 0;
+                if (value !== undefined) value = undefined;
+            } else if (isEnabled && value === undefined) {
+                if (schema.type === 'number' || schema.type === 'range') value = schema.default ?? 0;
                 else if (schema.type === 'boolean') value = schema.default ?? false;
                 else value = schema.default ?? '';
             }

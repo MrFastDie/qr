@@ -1,0 +1,27 @@
+name: build-and-deploy.yml
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_AUTHORIZED_KEYS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa_copy
+          chmod 400 ~/.ssh/id_rsa_copy
+
+      - name: Install dependencies
+        run: bun install
+      - name: Build
+        run: bun run build
+      - name: Deploy
+        run: rsync -avz -e 'ssh -p 58234' -i ~/.ssh/id_rsa_copy -o UserKnownHostsFile=~/.ssh/known_hosts' ./build/* deploy@qr.hackbarth.ch:/

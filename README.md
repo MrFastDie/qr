@@ -4,6 +4,8 @@ A quick and dirty solution to generate QR Codes including images because every o
 
 I might or might now improve anything, right now a lot is vibecoded to get this job done.
 
+Visit it at [qr.hackbarth.ch](https://qr.hackbarth.ch/)
+
 ## Run dev
 It's a small project just do:
 

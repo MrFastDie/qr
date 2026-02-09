@@ -386,6 +386,7 @@
   }
 
   .downloads {
+    margin-top: 15px;
     button {
       cursor: pointer;
     }
